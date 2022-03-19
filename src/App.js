@@ -1,18 +1,16 @@
-import { useEffect, useState, useRef } from 'react'
-import { letters, status } from './constants'
-import { Keyboard } from './components/Keyboard'
-import words from './data/words'
-
-import { useLocalStorage } from './hooks/useLocalStorage'
-import { ReactComponent as Info } from './data/Info.svg'
-import { ReactComponent as Settings } from './data/Settings.svg'
-import { ReactComponent as Share } from './data/Share.svg'
-
-import { InfoModal } from './components/InfoModal'
-import { SettingsModal } from './components/SettingsModal'
-import { EndGameModal } from './components/EndGameModal'
-
 import { Menu } from '@headlessui/react'
+import { autoBlackWhite, Block, Button, Column, Container, Grid, Text } from '@linen/ui'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { EndGameModal } from './components/EndGameModal'
+import { GuessGrid } from './components/GuessGrid'
+import { InfoModal } from './components/InfoModal'
+import { Keyboard } from './components/Keyboard'
+import { SettingsModal } from './components/SettingsModal'
+import { letters, status } from './constants'
+import answers from './data/answers'
+import { ReactComponent as Share } from './data/Share.svg'
+import { isValidWord } from './helpers'
+import { useLocalStorage } from './hooks/useLocalStorage'
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ')
@@ -25,32 +23,31 @@ const state = {
 }
 
 const getDayAnswer = (day_) => {
-  return wordle_answers[day_-1].toUpperCase()
+  return answers[day_ - 1].toUpperCase()
 }
 
 // Set the day number of the puzzle to display and show it as the address bar query string
 
-const setDay = newDay => {
-  if (newDay < 1 || newDay > og_day) return;
-  day = newDay;
-  window.history.pushState({}, '', '?' + day);
-};
+const setDay = (newDay) => {
+  if (newDay < 1 || newDay > og_day) return
+  day = newDay
+  window.history.pushState({}, '', '?' + day)
+}
 
 const getDay = (og_day) => {
-  const { search } = document.location;
+  const { search } = document.location
   var url_day = og_day
   if (search) {
     if (isNaN(search.slice(1))) {
       url_day = og_day
     } else {
-      url_day = parseInt(search.slice(1), 10);
+      url_day = parseInt(search.slice(1), 10)
     }
     if (url_day > og_day || url_day < 1) {
       url_day = og_day
     }
     return url_day
-  }
-  else {
+  } else {
     return og_day
   }
 }
@@ -67,48 +64,46 @@ const getIsSavedSolution = () => {
   const gameStateList = JSON.parse(localStorage.getItem('gameStateList'))
 
   if (gameStateList) {
-    const dayState = gameStateList[day-1]
+    const dayState = gameStateList[day - 1]
     return dayState && dayState.state === state.won && dayState.board !== null
   }
 
-  return false;
+  return false
 }
 
 const getIsClearedSolution = (day_) => {
   const gameStateList = JSON.parse(localStorage.getItem('gameStateList'))
 
   if (gameStateList) {
-    const dayState = gameStateList[day_-1]
+    const dayState = gameStateList[day_ - 1]
     return dayState?.state === state.won && dayState?.board === null
   }
 
-  return false;
+  return false
 }
 
 const calculateScore = (day_) => {
   const gameStateList = JSON.parse(localStorage.getItem('gameStateList'))
 
   if (gameStateList) {
-    const dayState = gameStateList[day_-1];
-    const board = dayState?.board;
+    const dayState = gameStateList[day_ - 1]
+    const board = dayState?.board
 
     // puzzle was solved before we tracked board state in
     // local storage. we'll still show the solved puzzle
     // (on first row) but don't show score since its unknown
     if (dayState?.scoreUnknown) {
-      return '';
+      return ''
     }
 
     const numGuesses = board
-      ? board
-        .flatMap(row => row.join('') ? 1 : 0)
-        .reduce((acc, curr) => acc + curr, 0)
-      : null;
+      ? board.flatMap((row) => (row.join('') ? 1 : 0)).reduce((acc, curr) => acc + curr, 0)
+      : null
 
-    return numGuesses ? `${numGuesses}/6` : '';
+    return numGuesses ? `${numGuesses}/6` : ''
   }
 
-  return '';
+  return ''
 }
 
 // check if gameStateList is old gameStateList shape (array of strings) and
@@ -122,46 +117,39 @@ const oneTimeGameStateListUpdate = (stringGameStateList) => {
         state: state.won,
         scoreUnknown: true,
         board: new Array(6)
-          .fill(wordle_answers[idx].toUpperCase().split(''), 0, 1)
-          .fill(new Array(5).fill(''), 1)
+          .fill(answers[idx].toUpperCase().split(''), 0, 1)
+          .fill(new Array(5).fill(''), 1),
       }
     }
 
     return {
       state: gameState,
-      board: null
+      board: null,
     }
-  });
+  })
 
-  localStorage.setItem('gameStateList', JSON.stringify(objectGameStateList));
+  localStorage.setItem('gameStateList', JSON.stringify(objectGameStateList))
 }
 
-const wordle_answers = ["rebut", "sissy", "humph", "awake", "blush", "focal", "evade", "naval", "serve", "heath", "dwarf", "model", "karma", "stink", "grade", "quiet", "bench", "abate", "feign", "major", "death", "fresh", "crust", "stool", "colon", "abase", "marry", "react", "batty", "pride", "floss", "helix", "croak", "staff", "paper", "unfed", "whelp", "trawl", "outdo", "adobe", "crazy", "sower", "repay", "digit", "crate", "cluck", "spike", "mimic", "pound", "maxim", "linen", "unmet", "flesh", "booby", "forth", "first", "stand", "belly", "ivory", "seedy", "print", "yearn", "drain", "bribe", "stout", "panel", "crass", "flume", "offal", "agree", "error", "swirl", "argue", "bleed", "delta", "flick", "totem", "wooer", "front", "shrub", "parry", "biome", "lapel", "start", "greet", "goner", "golem", "lusty", "loopy", "round", "audit", "lying", "gamma", "labor", "islet", "civic", "forge", "corny", "moult", "basic", "salad", "agate", "spicy", "spray", "essay", "fjord", "spend", "kebab", "guild", "aback", "motor", "alone", "hatch", "hyper", "thumb", "dowry", "ought", "belch", "dutch", "pilot", "tweed", "comet", "jaunt", "enema", "steed", "abyss", "growl", "fling", "dozen", "boozy", "erode", "world", "gouge", "click", "briar", "great", "altar", "pulpy", "blurt", "coast", "duchy", "groin", "fixer", "group", "rogue", "badly", "smart", "pithy", "gaudy", "chill", "heron", "vodka", "finer", "surer", "radio", "rouge", "perch", "retch", "wrote", "clock", "tilde", "store", "prove", "bring", "solve", "cheat", "grime", "exult", "usher", "epoch", "triad", "break", "rhino", "viral", "conic", "masse", "sonic", "vital", "trace", "using", "peach", "champ", "baton", "brake", "pluck", "craze", "gripe", "weary", "picky", "acute", "ferry", "aside", "tapir", "troll", "unify", "rebus", "boost", "truss", "siege", "tiger", "banal", "slump", "crank", "gorge", "query", "drink", "favor", "abbey", "tangy", "panic", "solar", "shire", "proxy", "point", "robot", "prick", "wince", "crimp", "knoll", "sugar", "whack", "mount", "perky", "could", "wrung", "light", "those", "moist", "shard", "pleat", "aloft", "skill", "elder", "frame", "humor", "pause", "ulcer", "ultra", "robin", "cynic", "aroma", "caulk", "shake", "dodge", "swill", "tacit", "other", "thorn", "trove", "bloke", "vivid", "spill", "chant", "choke", "rupee", "nasty", "mourn", "ahead", "brine", "cloth", "hoard", "sweet", "month", "lapse", "watch", "today", "focus", "smelt", "tease", "cater", "movie", "saute", "allow", "renew", "their", "slosh", "purge", "chest", "depot", "epoxy", "nymph", "found", "shall", "harry", "stove", "lowly", "snout", "trope", "fewer", "shawl", "natal", "comma", "foray", "scare", "stair", "black", "squad", "royal", "chunk", "mince", "shame", "cheek", "ample", "flair", "foyer", "cargo", "oxide", "plant", "olive", "inert", "askew", "heist", "shown", "zesty", "hasty", "trash", "fella", "larva", "forgo", "story", "hairy", "train", "homer", "badge", "midst", "canny", "fetus", "butch", "farce", "slung", "tipsy", "metal", "yield", "delve", "being", "scour", "glass", "gamer", "scrap", "money", "hinge", "album", "vouch", "asset", "tiara", "crept", "bayou", "atoll", "manor", "creak", "showy", "phase", "froth", "depth", "gloom", "flood", "trait", "girth", "piety", "payer", "goose", "float", "donor", "atone", "primo", "apron", "blown", "cacao", "loser", "input", "gloat", "awful", "brink", "smite", "beady", "rusty", "retro", "droll", "gawky", "hutch", "pinto", "gaily", "egret", "lilac", "sever", "field", "fluff", "hydro", "flack", "agape", "voice", "stead", "stalk", "berth", "madam", "night", "bland", "liver", "wedge", "augur", "roomy", "wacky", "flock", "angry", "bobby", "trite", "aphid", "tryst", "midge", "power", "elope", "cinch", "motto", "stomp", "upset", "bluff", "cramp", "quart", "coyly", "youth", "rhyme", "buggy", "alien", "smear", "unfit", "patty", "cling", "glean", "label", "hunky", "khaki", "poker", "gruel", "twice", "twang", "shrug", "treat", "unlit", "waste", "merit", "woven", "octal", "needy", "clown", "widow", "irony", "ruder", "gauze", "chief", "onset", "prize", "fungi", "charm", "gully", "inter", "whoop", "taunt", "leery", "class", "theme", "lofty", "tibia", "booze", "alpha", "thyme", "eclat", "doubt", "parer", "chute", "stick", "trice", "alike", "sooth", "recap", "saint", "liege", "glory", "grate", "admit", "brisk", "soggy", "usurp", "scald", "scorn", "leave", "twine", "sting", "bough", "marsh", "sloth", "dandy", "vigor", "howdy", "enjoy"]
+const EMPTY_GAME_BOARD = new Array(5).fill('').map((_, i) => ({
+  letters: ['', '', '', '', ''],
+  submitted: false,
+  active: i === 0 ? true : false,
+}))
 
-var day;
+var day
 const og_day = getOGDay()
-setDay(getDay(og_day));
+setDay(getDay(og_day))
 var items_list = []
-for (var i=1;i<=og_day;i++) {
+for (var i = 1; i <= og_day; i++) {
   items_list.push(i)
 }
 
 function App() {
-
-  const reloadCount = Number(sessionStorage.getItem('reloadCount')) || 0;
+  const reloadCount = Number(sessionStorage.getItem('reloadCount')) || 0
 
   const initialStates = {
-    answer: () => getDayAnswer(day),
     gameState: state.playing,
-    board: [
-      ['', '', '', '', ''],
-      ['', '', '', '', ''],
-      ['', '', '', '', ''],
-      ['', '', '', '', ''],
-      ['', '', '', '', ''],
-      ['', '', '', '', ''],
-    ],
-    cellStatuses: () => Array(6).fill(Array(5).fill(status.unguessed)),
     currentRow: 0,
     currentCol: 0,
     letterStatuses: () => {
@@ -173,12 +161,12 @@ function App() {
     },
   }
 
-  const [answer, setAnswer] = useState(initialStates.answer)
+  const answer = useMemo(() => getDayAnswer(day), [])
   const [gameState, setGameState] = useState(initialStates.gameState)
-  const [board, setBoard] = useState(initialStates.board)
+  const [board, setBoard] = useState(EMPTY_GAME_BOARD)
   const [cellStatuses, setCellStatuses] = useState(initialStates.cellStatuses)
-  const [currentRow, setCurrentRow] = useState(initialStates.currentRow)
-  const [currentCol, setCurrentCol] = useState(initialStates.currentCol)
+  const [currentRow, setCurrentRow] = useState(0)
+  const [currentCol, setCurrentCol] = useState(0)
   const [letterStatuses, setLetterStatuses] = useState(initialStates.letterStatuses)
   const [submittedInvalidWord, setSubmittedInvalidWord] = useState(false)
   const [currentStreak, setCurrentStreak] = useLocalStorage('current-streak', 0)
@@ -186,8 +174,7 @@ function App() {
   const streakUpdated = useRef(false)
   const [modalIsOpen, setIsOpen] = useState(false)
   const [firstTime, setFirstTime] = useLocalStorage('first-time', true)
-  const [infoModalIsOpen, setInfoModalIsOpen] = useState(firstTime)
-  const [settingsModalIsOpen, setSettingsModalIsOpen] = useState(false)
+
   const [isSavedSolution, setIsSavedSolution] = useState(getIsSavedSolution())
 
   const [gameStateList, setGameStateList] = useLocalStorage(
@@ -195,20 +182,15 @@ function App() {
     Array(500).fill({ state: initialStates.gameState, board: null })
   )
 
-
   const openModal = () => setIsOpen(true)
   const closeModal = () => setIsOpen(false)
-  const handleInfoClose = () => {
-    setFirstTime(false)
-    setInfoModalIsOpen(false)
-  }
 
   const [darkMode, setDarkMode] = useLocalStorage('dark-mode', false)
   const toggleDarkMode = () => {
     setDarkMode((prev) => !prev)
   }
 
-  const [colorBlindMode, setColorblindMode] = useLocalStorage('colorblind-mode', false)
+  const [colorblindMode, setColorblindMode] = useLocalStorage('colorblind-mode', false)
   const toggleColorBlindMode = () => {
     setColorblindMode((prev) => !prev)
   }
@@ -237,43 +219,44 @@ function App() {
   }, [gameState, currentStreak, longestStreak, setLongestStreak, setCurrentStreak])
 
   useEffect(() => {
-    const jsonGameStateList = localStorage.getItem('gameStateList');
-    if (jsonGameStateList == null) {
+    const jsonGameStateList = localStorage.getItem('gameStateList')
+    if (jsonGameStateList === null) {
       setGameStateList(gameStateList)
     } else {
-      const gameStateList = JSON.parse(jsonGameStateList);
+      const gameStateList = JSON.parse(jsonGameStateList)
 
       // address regression impact of gameStateList change
       // see oneTimeGameStateListUpdate for more info on this
       if (typeof gameStateList[0] === 'string') {
-        oneTimeGameStateListUpdate(gameStateList);
+        oneTimeGameStateListUpdate(gameStateList)
       }
     }
 
     // set to a blank board or the board from a past win
-    setInitialGameState();
+    setInitialGameState()
   }, [])
 
   useEffect(() => {
     if (reloadCount < 1) {
-      window.location.reload(true);
-      sessionStorage.setItem('reloadCount', String(reloadCount + 1));
+      window.location.reload(true)
+      sessionStorage.setItem('reloadCount', String(reloadCount + 1))
     } else {
-      sessionStorage.removeItem('reloadCount');
+      sessionStorage.removeItem('reloadCount')
     }
   }, [og_day])
 
   // update letter and cell statuses each time we move onto a
   // new row and when we switch to a puzzle with a saved solution
   useEffect(() => {
-    const isGameOver = currentRow === 6;
-    const isEnterPressOrSavedGame = currentRow !== 6 && currentCol === 0 && (
-      board[currentRow][currentCol] === '' || isSavedSolution
-    );
+    const isGameOver = currentRow === 6
+    const isEnterPressOrSavedGame =
+      currentRow !== 6 &&
+      currentCol === 0 &&
+      (board[currentRow][currentCol] === '' || isSavedSolution)
 
     if (isGameOver || isEnterPressOrSavedGame) {
       board.forEach((row, idx) => {
-        const word = row.join('')
+        const word = row.letters.join('')
 
         if (word) {
           updateLetterStatuses(word)
@@ -286,7 +269,7 @@ function App() {
   const setInitialGameState = () => {
     const gameStateList = JSON.parse(localStorage.getItem('gameStateList'))
 
-    setAnswer(initialStates.answer)
+    // setAnswer(initialStates.answer)
     setCurrentRow(initialStates.currentRow)
     setCurrentCol(initialStates.currentCol)
     setCellStatuses(initialStates.cellStatuses)
@@ -295,51 +278,19 @@ function App() {
     if (gameStateList && getIsSavedSolution()) {
       setIsSavedSolution(true)
       setGameState(state.won)
-      setBoard(gameStateList[day-1].board)
+      // setBoard(gameStateList[day - 1].board)
     } else {
       setIsSavedSolution(false)
-      setBoard(initialStates.board)
+      setBoard(EMPTY_GAME_BOARD)
       setGameState(initialStates.gameState)
     }
   }
 
   const clearSolution = () => {
     const newGameStateList = JSON.parse(localStorage.getItem('gameStateList'))
-    newGameStateList[day-1].board = null;
-    localStorage.setItem("gameStateList", JSON.stringify(newGameStateList))
-    setInitialGameState();
-  }
-
-  const getCellStyles = (rowNumber, colNumber, letter) => {
-    if (rowNumber === currentRow && !isSavedSolution) {
-      if (letter) {
-        return `nm-inset-background dark:nm-inset-background-dark text-primary dark:text-primary-dark ${
-          submittedInvalidWord ? 'border border-red-800' : ''
-        }`
-      }
-      return 'nm-flat-background dark:nm-flat-background-dark text-primary dark:text-primary-dark'
-    }
-
-    switch (cellStatuses[rowNumber][colNumber]) {
-      case status.green:
-        if (colorBlindMode) {
-          return 'nm-inset-orange-500 text-gray-50'
-        }
-        else {
-          return 'nm-inset-n-green text-gray-50'
-        }
-      case status.yellow:
-      if (colorBlindMode) {
-        return 'nm-inset-blue-300 text-gray-50'
-      }
-      else {
-        return 'nm-inset-yellow-500 text-gray-50'
-      }
-      case status.gray:
-        return 'nm-inset-n-gray text-gray-50'
-      default:
-        return 'nm-flat-background dark:nm-flat-background-dark text-primary dark:text-primary-dark'
-    }
+    newGameStateList[day - 1].board = null
+    localStorage.setItem('gameStateList', JSON.stringify(newGameStateList))
+    setInitialGameState()
   }
 
   const addLetter = (letter) => {
@@ -350,7 +301,7 @@ function App() {
         return prev
       }
       const newBoard = [...prev]
-      newBoard[currentRow][currentCol] = letter
+      newBoard[currentRow].letters[currentCol] = letter
       return newBoard
     })
     if (currentCol < 5) {
@@ -358,21 +309,29 @@ function App() {
     }
   }
 
-  const isValidWord = (word) => {
-    if (word.length < 5) return false
-    return words[word.toLowerCase()]
-  }
-
   const onEnterPress = () => {
-    const word = board[currentRow].join('')
+    const word = board[currentRow].letters.join('')
     if (!isValidWord(word)) {
       setSubmittedInvalidWord(true)
       return
     }
 
-    if (currentRow === 6) return
+    const activeRow = currentRow
+    const nextRow = currentRow + 1
+    setBoard((b) =>
+      b.map((r, i) => {
+        if (i === activeRow) {
+          return { ...r, submitted: true }
+        } else {
+          return r
+        }
+      })
+    )
 
-    setCurrentRow((prev) => prev + 1)
+    if (nextRow === board.length) {
+      return
+    }
+    setCurrentRow(nextRow)
     setCurrentCol(0)
   }
 
@@ -382,74 +341,12 @@ function App() {
 
     setBoard((prev) => {
       const newBoard = [...prev]
-      newBoard[currentRow][currentCol - 1] = ''
+      newBoard[currentRow].letters[currentCol - 1] = ''
       return newBoard
     })
 
     setCurrentCol((prev) => prev - 1)
   }
-
-  const updateCellStatuses = (word, rowNumber) => {
-    setCellStatuses((prev) => {
-      const newCellStatuses = [...prev]
-      newCellStatuses[rowNumber] = [...prev[rowNumber]]
-      const wordLength = word.length
-      const answerLetters = answer.split('')
-
-      // set all to gray
-      for (let i = 0; i < wordLength; i++) {
-        newCellStatuses[rowNumber][i] = status.gray
-      }
-
-      // check greens
-      for (let i = wordLength - 1; i >= 0; i--) {
-        if (word[i] === answer[i]) {
-          newCellStatuses[rowNumber][i] = status.green
-          answerLetters.splice(i, 1)
-        }
-      }
-
-      // check yellows
-      for (let i = 0; i < wordLength; i++) {
-        if (answerLetters.includes(word[i]) && newCellStatuses[rowNumber][i] !== status.green) {
-          newCellStatuses[rowNumber][i] = status.yellow
-          answerLetters.splice(answerLetters.indexOf(word[i]), 1)
-        }
-      }
-
-      return newCellStatuses
-    })
-  }
-
-  const isRowAllGreen = (row) => {
-    return row.every((cell) => cell === status.green)
-  }
-
-  // every time cellStatuses updates, check if the game is won or lost
-  useEffect(() => {
-    const cellStatusesCopy = [...cellStatuses]
-    const reversedStatuses = cellStatusesCopy.reverse()
-    const lastFilledRow = reversedStatuses.find((r) => {
-      return r[0] !== status.unguessed
-    })
-
-    // don't update game state for already won games
-    if (!isSavedSolution) {
-      const newGameStateList = JSON.parse(localStorage.getItem('gameStateList'))
-      const dayState = newGameStateList[day-1]
-
-      if (lastFilledRow && isRowAllGreen(lastFilledRow)) {
-        setGameState(state.won)
-        dayState.board = board
-        dayState.state = state.won
-        dayState.scoreUnknown = false;
-      } else if (currentRow === 6) {
-        setGameState(state.lost)
-        dayState.state = state.lost
-      }
-      localStorage.setItem('gameStateList', JSON.stringify(newGameStateList))
-    }
-  }, [cellStatuses, currentRow])
 
   const updateLetterStatuses = (word) => {
     setLetterStatuses((prev) => {
@@ -470,40 +367,9 @@ function App() {
     })
   }
 
-  const modalStyles = {
-    overlay: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: darkMode ? 'hsl(231, 16%, 25%)' : 'hsl(231, 16%, 92%)',
-    },
-    content: {
-      top: '50%',
-      left: '50%',
-      right: 'auto',
-      bottom: 'auto',
-      transform: 'translate(-50%, -50%)',
-      height: 'calc(100% - 2rem)',
-      width: 'calc(100% - 2rem)',
-      backgroundColor: darkMode ? 'hsl(231, 16%, 25%)' : 'hsl(231, 16%, 92%)',
-      boxShadow: `${
-        darkMode
-          ? '0.2em 0.2em calc(0.2em * 2) #252834, calc(0.2em * -1) calc(0.2em * -1) calc(0.2em * 2) #43475C'
-          : '0.2em 0.2em calc(0.2em * 2) #A3A7BD, calc(0.2em * -1) calc(0.2em * -1) calc(0.2em * 2) #FFFFFF'
-      }`,
-      border: 'none',
-      borderRadius: '1rem',
-      maxWidth: '475px',
-      maxHeight: '650px',
-      position: 'relative',
-    },
-  }
-
   const playFirst = () => playDay(1)
   const playPrevious = () => playDay(day - 1)
-  const playRandom = () => playDay(Math.floor(Math.random() * (og_day-1)) + 1)
+  const playRandom = () => playDay(Math.floor(Math.random() * (og_day - 1)) + 1)
   const playNext = () => playDay(day + 1)
   const playLast = () => playDay(og_day)
 
@@ -513,104 +379,128 @@ function App() {
   }
 
   var tempGameStateList = JSON.parse(localStorage.getItem('gameStateList'))
-  if (tempGameStateList == null) {
+  if (tempGameStateList === null) {
     setGameStateList(gameStateList)
     tempGameStateList = gameStateList
   }
-  for (var i=4;i<=og_day+3;i++) {
-    var textNumber = document.getElementById('headlessui-menu-item-'+i)
-    if(textNumber != null) {
-      if (tempGameStateList[i-1].state == state.won) {
-        textNumber.classList.add('green-text');
+  for (var i = 4; i <= og_day + 3; i++) {
+    var textNumber = document.getElementById('headlessui-menu-item-' + i)
+    if (textNumber != null) {
+      if (tempGameStateList[i - 1].state === state.won) {
+        textNumber.classList.add('green-text')
       }
-      if (tempGameStateList[i-1].state == state.lost) {
-        textNumber.classList.add('red-text');
+      if (tempGameStateList[i - 1].state === state.lost) {
+        textNumber.classList.add('red-text')
       }
     }
   }
 
-  var header_symbol = (tempGameStateList[day-1].state == 'won') ? ('✔') : ((tempGameStateList[day-1].state == 'lost') ? ('✘') : '')
+  var header_symbol =
+    tempGameStateList[day - 1].state === 'won'
+      ? '✔'
+      : tempGameStateList[day - 1].state === 'lost'
+      ? '✘'
+      : ''
 
-  var elements = items_list.map(i => {
+  var elements = items_list.map((i) => {
     return (
       <Menu.Item key={i}>
-        {({ active }) =>
-          (
-            <button onClick={() => playDay(i)} className={classNames(
-              tempGameStateList[i-1].state,
-              getIsClearedSolution(i) ? "cleared" : "",
+        {({ active }) => (
+          <button
+            onClick={() => playDay(i)}
+            className={classNames(
+              tempGameStateList[i - 1].state,
+              getIsClearedSolution(i) ? 'cleared' : '',
               active ? 'font-bold text-gray-900' : 'text-gray-700',
-              'flex justify-between block px-4 py-2 text-sm w-full',
-            )}>
-                <span>
-                  {i+(tempGameStateList[i-1].state == state.won ? ' ✔' : tempGameStateList[i-1].state == state.lost ? ' ✘' : '')}
-                </span>
-                <span>
-                  {calculateScore(i)}
-                </span>
-            </button>
-          )
-        }
+              'flex justify-between block px-4 py-2 text-sm w-full'
+            )}
+          >
+            <span>
+              {i +
+                (tempGameStateList[i - 1].state === state.won
+                  ? ' ✔'
+                  : tempGameStateList[i - 1].state === state.lost
+                  ? ' ✘'
+                  : '')}
+            </span>
+            <span>{calculateScore(i)}</span>
+          </button>
+        )}
       </Menu.Item>
-    );
-  });
+    )
+  })
 
-  if (darkMode == true) {
-    var html = document.getElementsByTagName( 'html' )[0]; // '0' to assign the first (and only `HTML` tag)
-    html.setAttribute( 'class', 'dark-bg' );
-  }
-  else {
-    var html = document.getElementsByTagName( 'html' )[0]; // '0' to assign the first (and only `HTML` tag)
-    html.setAttribute( 'class', 'bg' );
+  const settingsModal = (
+    <SettingsModal
+      darkMode={darkMode}
+      toggleDarkMode={toggleDarkMode}
+      colorBlindMode={colorblindMode}
+      toggleColorBlindMode={toggleColorBlindMode}
+    />
+  )
+
+  const infoModal = <InfoModal darkMode={darkMode} colorBlindMode={colorblindMode} />
+
+  if (darkMode === true) {
+    var html = document.getElementsByTagName('html')[0] // '0' to assign the first (and only `HTML` tag)
+    html.setAttribute('class', 'dark-bg')
+  } else {
+    var html = document.getElementsByTagName('html')[0] // '0' to assign the first (and only `HTML` tag)
+    html.setAttribute('class', 'bg')
   }
 
   if (window.innerWidth < 600) {
     return (
       <div className={darkMode ? 'dark h-fill' : 'h-fill'}>
-        <div className={`flex flex-col justify-between h-fill bg-background dark:bg-background-dark`}>
+        <div
+          className={`flex flex-col justify-between h-fill bg-background dark:bg-background-dark`}
+        >
           <header className="flex items-center py-2 px-3 text-primary dark:text-primary-dark">
-            <button type="button" onClick={() => setSettingsModalIsOpen(true)}>
-              <Settings />
-            </button>
-            <h1 className={"flex-1 text-center text-l xxs:text-lg sm:text-3xl tracking-wide font-bold font-og"}>
+            {settingsModal}
+
+            <h1
+              className={
+                'flex-1 text-center text-l xxs:text-lg sm:text-3xl tracking-wide font-bold font-og'
+              }
+            >
               WORDLE ARCHIVE {day} {header_symbol}
             </h1>
             <button className="mr-2" type="button" onClick={() => setIsOpen(true)}>
               <Share />
             </button>
-            <button type="button" onClick={() => setInfoModalIsOpen(true)}>
-              <Info />
-            </button>
+            {infoModal}
           </header>
+          <div className="flex flex-force-center items-center py-3">
+            <div className="flex items-center px-2">
+              <Button onClick={playPrevious}>Previous</Button>
+            </div>
+            <div className="flex items-center px-2">
+              <button
+                type="button"
+                className="rounded px-2 py-2 mt-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
+                onClick={playRandom}
+              >
+                Random
+              </button>
+            </div>
+            <div className="flex items-center px-2">
+              <button
+                type="button"
+                className="rounded px-2 py-2 mt-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
+                onClick={playNext}
+              >
+                Next
+              </button>
+            </div>
+          </div>
           <div className="flex flex-force-center items-center py-3">
             <div className="flex items-center px-2">
               <button
                 type="button"
-                className="rounded px-2 py-2 mt-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playPrevious}>Previous
-              </button>
-            </div>
-            <div className="flex items-center px-2">
-              <button
-                type="button"
-                className="rounded px-2 py-2 mt-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playRandom}>Random
-              </button>
-            </div>
-            <div className="flex items-center px-2">
-              <button
-                type="button"
-                className="rounded px-2 py-2 mt-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playNext}>Next
-              </button>
-            </div>
-          </div>
-           <div className="flex flex-force-center items-center py-3">
-            <div className="flex items-center px-2">
-              <button
-                type="button"
                 className="rounded px-2 py-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playFirst}>First
+                onClick={playFirst}
+              >
+                First
               </button>
             </div>
             <div className="flex items-center px-2">
@@ -620,50 +510,34 @@ function App() {
                     Choose
                   </Menu.Button>
                 </div>
-                  <Menu.Items className="origin-top-right absolute right-0 mt-2 w-42 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none overflow-y-scroll h-56">
-                    <div className="py-1">
-                      {elements}
-                    </div>
-                  </Menu.Items>
+                <Menu.Items className="origin-top-right absolute right-0 mt-2 w-42 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none overflow-y-scroll h-56">
+                  <div className="py-1">{elements}</div>
+                </Menu.Items>
               </Menu>
             </div>
             <div className="flex items-center px-2">
               <button
                 type="button"
                 className="rounded px-2 py-2 w-24 text-sm nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playLast}>Last
+                onClick={playLast}
+              >
+                Last
               </button>
             </div>
           </div>
-          <div className="flex items-center flex-col py-4">
-            <div className="grid grid-cols-5 grid-flow-row gap-4">
-              {board.map((row, rowNumber) =>
-                row.map((letter, colNumber) => (
-                  <span
-                    key={colNumber}
-                    className={`${getCellStyles(
-                      rowNumber,
-                      colNumber,
-                      letter
-                    )} inline-flex items-center font-medium justify-center text-xl w-[14vw] h-[14vw] xs:w-14 xs:h-14 sm:w-20 sm:h-20 rounded`}
-                  >
-                    {letter}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-          <InfoModal
-            isOpen={infoModalIsOpen}
-            handleClose={handleInfoClose}
-            darkMode={darkMode}
-            colorBlindMode={colorBlindMode}
-            styles={modalStyles}
-          />
+          <Container justify="start" align="center">
+            <GuessGrid
+              board={board}
+              solution={answer}
+              colorblindMode={colorblindMode}
+              currentRowInvalid={submittedInvalidWord}
+              currentRow={currentRow}
+            />
+          </Container>
+
           <EndGameModal
             isOpen={modalIsOpen}
             handleClose={closeModal}
-            styles={modalStyles}
             darkMode={darkMode}
             gameState={gameState}
             state={state}
@@ -678,15 +552,6 @@ function App() {
             currentRow={currentRow}
             cellStatuses={cellStatuses}
           />
-          <SettingsModal
-            isOpen={settingsModalIsOpen}
-            handleClose={() => setSettingsModalIsOpen(false)}
-            styles={modalStyles}
-            darkMode={darkMode}
-            toggleDarkMode={toggleDarkMode}
-            colorBlindMode={colorBlindMode}
-            toggleColorBlindMode={toggleColorBlindMode}
-          />
           <Keyboard
             isSolved={gameState === state.won}
             onClear={clearSolution}
@@ -695,44 +560,37 @@ function App() {
             onEnterPress={onEnterPress}
             onDeletePress={onDeletePress}
             gameDisabled={gameState !== state.playing}
-            colorBlindMode={colorBlindMode}
+            colorBlindMode={colorblindMode}
           />
         </div>
       </div>
     )
-  }
-  else {
+  } else {
     return (
       <div className={darkMode ? 'dark h-fill' : 'h-fill'}>
-        <div className={`flex flex-col justify-between h-fill bg-background dark:bg-background-dark`}>
+        <div
+          className={`flex flex-col justify-between h-fill bg-background dark:bg-background-dark`}
+        >
           <header className="flex items-center py-2 px-3 text-primary dark:text-primary-dark">
-            <button type="button" onClick={() => setSettingsModalIsOpen(true)}>
-              <Settings />
-            </button>
-            <h1 className={"flex-1 text-center text-xl xxs:text-2xl -mr-6 sm:text-4xl tracking-wide font-bold font-og"}>
-              WORDLE ARCHIVE {day}  {header_symbol}
+            {settingsModal}
+            <h1
+              className={
+                'flex-1 text-center text-xl xxs:text-2xl -mr-6 sm:text-4xl tracking-wide font-bold font-og'
+              }
+            >
+              WORDLE ARCHIVE {day} {header_symbol}
             </h1>
             <button className="mr-6" type="button" onClick={() => setIsOpen(true)}>
               <Share />
             </button>
-            <button type="button" onClick={() => setInfoModalIsOpen(true)}>
-              <Info />
-            </button>
+            {infoModal}
           </header>
           <div className="flex flex-force-center items-center py-3">
             <div className="flex items-center px-3">
-              <button
-                type="button"
-                className="rounded px-3 py-2 mt-4 w-32 text-lg nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playFirst}>First
-              </button>
+              <Button onClick={playFirst}>First</Button>
             </div>
             <div className="flex items-center px-3">
-              <button
-                type="button"
-                className="rounded px-3 py-2 mt-4 w-32 text-lg nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playPrevious}>Previous
-              </button>
+              <Button onClick={playPrevious}>Previous</Button>
             </div>
             <div className="flex items-center px-3">
               <Menu as="div" className="relative inline-block text-left">
@@ -741,66 +599,46 @@ function App() {
                     Choose
                   </Menu.Button>
                 </div>
-                  <Menu.Items className="origin-top-right absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none overflow-y-scroll h-56">
-                    <div className="py-1">
-                      <Menu.Item key={i}>
-                        {({ active }) =>
-                          (
-                            <button onClick={() => playRandom()} className={classNames(active ? 'font-bold text-gray-900' : 'text-gray-700', 'block px-4 py-2 text-sm w-full text-left')}>
-                              Random
-                            </button>
-                          )
-                        }
-                      </Menu.Item>
-                      {elements}
-                    </div>
-                  </Menu.Items>
+                <Menu.Items className="origin-top-right absolute right-0 mt-2 w-32 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none overflow-y-scroll h-56">
+                  <div className="py-1">
+                    <Menu.Item key={i}>
+                      {({ active }) => (
+                        <button
+                          onClick={() => playRandom()}
+                          className={classNames(
+                            active ? 'font-bold text-gray-900' : 'text-gray-700',
+                            'block px-4 py-2 text-sm w-full text-left'
+                          )}
+                        >
+                          Random
+                        </button>
+                      )}
+                    </Menu.Item>
+                    {elements}
+                  </div>
+                </Menu.Items>
               </Menu>
             </div>
             <div className="flex items-center px-3">
-              <button
-                type="button"
-                className="rounded px-3 py-2 mt-4 w-32 text-lg nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playNext}>Next
-              </button>
+              <Button onClick={playNext}>Next</Button>
             </div>
             <div className="flex items-center px-3">
-              <button
-                type="button"
-                className="rounded px-3 py-2 mt-4 w-32 text-lg nm-flat-background dark:nm-flat-background-dark hover:nm-inset-background dark:hover:nm-inset-background-dark text-primary dark:text-primary-dark"
-                onClick={playLast}>Last
-              </button>
+              <Button onClick={playLast}>Last</Button>
             </div>
           </div>
-          <div className="flex items-center flex-col py-4">
-            <div className="grid grid-cols-5 grid-flow-row gap-4">
-              {board.map((row, rowNumber) =>
-                row.map((letter, colNumber) => (
-                  <span
-                    key={colNumber}
-                    className={`${getCellStyles(
-                      rowNumber,
-                      colNumber,
-                      letter
-                    )} inline-flex items-center font-bold justify-center text-3xl w-[14vw] h-[14vw] xs:w-14 xs:h-14 sm:w-20 sm:h-20 rounded`}
-                  >
-                    {letter}
-                  </span>
-                ))
-              )}
-            </div>
-          </div>
-          <InfoModal
-            isOpen={infoModalIsOpen}
-            handleClose={handleInfoClose}
-            darkMode={darkMode}
-            colorBlindMode={colorBlindMode}
-            styles={modalStyles}
-          />
+          <Container justify="start" align="center">
+            <GuessGrid
+              board={board}
+              solution={answer}
+              colorblindMode={colorblindMode}
+              currentRowInvalid={submittedInvalidWord}
+              currentRow={currentRow}
+            />
+          </Container>
+
           <EndGameModal
             isOpen={modalIsOpen}
             handleClose={closeModal}
-            styles={modalStyles}
             darkMode={darkMode}
             gameState={gameState}
             state={state}
@@ -815,15 +653,7 @@ function App() {
             currentRow={currentRow}
             cellStatuses={cellStatuses}
           />
-          <SettingsModal
-            isOpen={settingsModalIsOpen}
-            handleClose={() => setSettingsModalIsOpen(false)}
-            styles={modalStyles}
-            darkMode={darkMode}
-            toggleDarkMode={toggleDarkMode}
-            colorBlindMode={colorBlindMode}
-            toggleColorBlindMode={toggleColorBlindMode}
-          />
+
           <Keyboard
             isSolved={gameState === state.won}
             onClear={clearSolution}
@@ -832,7 +662,7 @@ function App() {
             onEnterPress={onEnterPress}
             onDeletePress={onDeletePress}
             gameDisabled={gameState !== state.playing}
-            colorBlindMode={colorBlindMode}
+            colorBlindMode={colorblindMode}
           />
         </div>
       </div>

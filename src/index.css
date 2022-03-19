@@ -30,7 +30,7 @@ html {
   overscroll-behavior-y: none;
   min-height: 100%;
 }
-#root{
+#root {
   height: 100%;
 }
 .h-fill {
@@ -81,11 +81,25 @@ html {
   background-color: #f8ffb5;
 }
 
-.lost{
+.lost {
   background-color: #ffc8c2;
 }
 
 .is-clear-key {
   background-color: #ee5858;
   color: white;
+}
+
+.__block.letter {
+  height: 64px;
+  width: 64px;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.__grid.guess-grid {
+  width: auto;
 }

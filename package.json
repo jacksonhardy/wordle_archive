@@ -5,9 +5,11 @@
   "homepage": "https://www.devangthakkar.com/wordle_archive",
   "dependencies": {
     "@headlessui/react": "^1.4.2",
+    "@linen/ui": "1.0.0-beta.17",
     "@testing-library/jest-dom": "^5.16.1",
     "@testing-library/react": "^12.1.2",
     "@testing-library/user-event": "^13.5.0",
+    "date-fns": "^2.28.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-modal": "^3.14.4",
